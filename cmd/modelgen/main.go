@@ -491,12 +491,12 @@ func negotiatedMedia(supported []string) string {
 }
 
 // switchMetadataPorts builds a switch port layout from the hardware DB's
-// per-category index map. Categories are walked widest-to-narrowest so a
-// later, more specific one wins an index the earlier one also claimed --
-// that is how a combo pair modelled as one copper port becomes copper plus
-// fiber. The override lets a category's media or index set be restated
-// where the bundle contradicts the product's published port layout, which
-// it does for a handful of models.
+// per-category index map. Categories are walked copper-first, so a fiber
+// category wins an index a copper one also claims -- that is how a combo
+// pair the bundle records as two copper ports becomes copper plus fiber.
+// The override lets a category's media or index set be restated where the
+// bundle contradicts the product's published port layout, which it does
+// for a handful of models.
 func switchMetadataPorts(meta deviceDBModel, o modelOverride) ([]catalogPort, error) {
 	mediaByIndex := map[int]string{}
 	for _, category := range []struct {

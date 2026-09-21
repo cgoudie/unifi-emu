@@ -60,6 +60,7 @@ type ethOverride struct {
 type radioOverride struct {
 	NSS int `json:"nss,omitempty"`
 }
+
 // portOverride restates one of the bundle's port categories. Media replaces
 // the connector the category implies; Indexes replaces the set of port numbers
 // it covers, in the bundle's own "1-24,26" notation, and may name a category
