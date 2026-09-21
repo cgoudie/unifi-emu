@@ -126,3 +126,183 @@ func vapTable(desc Descriptor) []map[string]any {
 	}
 	return table
 }
+
+// outletTable renders a power device's outlets. Only metered outlets carry the
+// voltage/current/power keys: a real device omits them entirely rather than
+// reporting zeros, and the controller distinguishes the two.
+//
+// The metering values are reported as JSON numbers. Some real power devices
+// report them as decimal strings instead and the controller accepts both, but
+// a number is unambiguous and matches what the metered UPS models send.
+func outletTable(desc Descriptor) []map[string]any {
+	table := make([]map[string]any, 0, len(desc.Outlets))
+	for _, o := range desc.Outlets {
+		entry := map[string]any{
+			"index":         o.Index,
+			"name":          o.Name,
+			"relay_state":   true,
+			"cycle_enabled": false,
+			"outlet_caps":   o.Caps,
+			"has_relay":     o.HasRelay,
+			"has_metering":  o.HasMetering,
+		}
+		if o.HasMetering {
+			// Static, like every other synthetic counter the emulator
+			// reports: a fixed sample is reproducible across informs,
+			// which is what the time series needs to stay sane.
+			entry["outlet_voltage"] = 120.0
+			entry["outlet_current"] = 0.0
+			entry["outlet_power"] = 0.0
+		}
+		table = append(table, entry)
+	}
+	return table
+}
+
+// psuTable renders a redundant-power device's supplies. psu_caps and psu_type
+// are per-supply: two supplies in one device can differ in both.
+func psuTable(desc Descriptor) []map[string]any {
+	table := make([]map[string]any, 0, len(desc.PSUs))
+	for _, p := range desc.PSUs {
+		table = append(table, map[string]any{
+			"index":    p.Index,
+			"psu_caps": p.Caps,
+			"psu_type": p.Type,
+		})
+	}
+	return table
+}
+
+// ifTable renders the device's interfaces. It is the join target for uplink,
+// which carries an interface *name*: the controller looks the name up here and
+// builds its own uplink record from the matching entry. A device that reports
+// no if_table has nothing for uplink to resolve against.
+//
+// Counters are static, like port_table's. time_delta is reported so the
+// controller derives the rate fields itself rather than reading zeros.
+func ifTable(desc Descriptor) []map[string]any {
+	table := make([]map[string]any, 0, len(desc.Ports))
+	for _, p := range desc.Ports {
+		entry := map[string]any{
+			"name":        p.IfName,
+			"ip":          desc.IP,
+			"netmask":     "255.255.255.0",
+			"mac":         desc.MAC,
+			"up":          true,
+			"enable":      true,
+			"speed":       mediaSpeed(p.Media),
+			"full_duplex": true,
+			"num_port":    1,
+			"time_delta":  10.0,
+			"rx_bytes":    0,
+			"tx_bytes":    0,
+			"rx_packets":  0,
+			"tx_packets":  0,
+			"rx_dropped":  0,
+			"tx_dropped":  0,
+			"rx_errors":   0,
+			"tx_errors":   0,
+		}
+		// The uplink interface is the one the controller resolves the
+		// default route through, so it is the only one that carries
+		// learned DNS and gateway lists.
+		if p.IsUplink {
+			entry["nameservers"] = []string{"127.0.0.53"}
+			entry["gateways"] = []string{"127.0.0.1"}
+		}
+		table = append(table, entry)
+	}
+	return table
+}
+
+// uplinkName is the interface the device reports as its uplink: the name the
+// controller looks up in if_table. It is the port flagged as the uplink in the
+// model layout, falling back to the first interface, and to eth0 for a device
+// with no ports at all.
+func uplinkName(desc Descriptor) string {
+	for _, p := range desc.Ports {
+		if p.IsUplink {
+			return p.IfName
+		}
+	}
+	if len(desc.Ports) > 0 {
+		return desc.Ports[0].IfName
+	}
+	return "eth0"
+}
+
+// mediaSpeed maps a model profile's media string to the negotiated speed the
+// interface reports. The controller reads speed with an integer accessor, so
+// these stay whole numbers.
+func mediaSpeed(media string) int {
+	switch media {
+	case "10GbE", "SFP+":
+		return 10000
+	case "SFP28":
+		return 25000
+	case "QSFP28":
+		return 100000
+	case "2.5GbE":
+		return 2500
+	case "FE":
+		// The power lineup's management interface is a 100 Mb port, so a
+		// gigabit default would overstate every PDU and UPS.
+		return 100
+	default:
+		return 1000
+	}
+}
+
+// vbmsTable renders a battery-backed device's battery-management state. It is
+// an object, not a table, despite the name the wire uses for it.
+//
+// The key casing inside it is inconsistent -- batteryLevel and capWh sit beside
+// batt_available_cnt and ischarging. That is the wire's spelling, not a typo:
+// the controller matches these names exactly, so normalizing them would make
+// the device report nothing.
+func vbmsTable(desc Descriptor) map[string]any {
+	return map[string]any{
+		// The on-battery signal. False means mains present, which is
+		// what drives the controller's AC-restored and battery-in-use
+		// alerts, so an emulated UPS reports a healthy mains feed.
+		"is_battery_mode": false,
+		"bms_run_anomaly": 0,
+		"epo_enabled":     desc.SmartPowerCaps&SmartPowerCapEmergencyPowerOff != 0,
+		"input_thd_level": 0,
+		"battpool": map[string]any{
+			"batteryLevel":              100,
+			"batteryLevelLow":           20,
+			"batteryLevelLowest":        10,
+			"timeToRemain":              3600,
+			"ischarging":                false,
+			"capWh":                     100,
+			"batt_available_cnt":        1,
+			"batt_available_power":      100,
+			"batt_total_power":          100,
+			"readycnt":                  1,
+			"device_total_power_budget": 100,
+			"device_total_power_output": 0,
+			// Output and bypass measurements. These are plain integers,
+			// not the millivolt/milliamp scaling battery_table uses, so
+			// they are reported unscaled.
+			"device_output_voltage": 120,
+			"device_output_current": 0,
+			"device_bypass_voltage": 120,
+		},
+		"battery_table": []map[string]any{{
+			"id":             desc.Serial,
+			"model":          desc.Model,
+			"fwv":            desc.Version,
+			"batteryHealth":  100,
+			"batteryAnomaly": 0,
+			"batteryMV":      12000,
+			"batteryMA":      0,
+			"health":         "Good",
+			"isBadBattery":   false,
+			"uptime":         0,
+			"isLocating":     false,
+			"client_state":   "ready",
+			"upgradable":     false,
+		}},
+	}
+}
