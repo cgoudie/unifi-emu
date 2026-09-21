@@ -218,6 +218,10 @@
       },
       "source": "techspecs.ui.com networking-interface (fingerprint sku UAP-XG)"
     },
+    "UDC48X6": {
+      "display": "UniFi Switch Leaf",
+      "source": "fingerprint DB f060: sku USW-Leaf, product name \"Switch Leaf\"; dl.ui.com/product_sheets/USW-Leaf_Brief.pdf. The bundle's \"UniFi Data Center 100G-48X6\" was never a retail name"
+    },
     "UFLHD": {
       "eth": {
         "count": 1,
@@ -239,6 +243,22 @@
       },
       "source": "techspecs.ui.com networking-interface (fingerprint sku U7-Outdoor)"
     },
+    "US648P": {
+      "ports": {
+        "plus": {
+          "indexes": "49-52"
+        }
+      },
+      "source": "https://techspecs.ui.com/unifi/switching/usw-enterprise-48-poe: 48x 2.5GbE RJ45 (all PoE+) + 4x 10G SFP+ = 52 ports. The bundle says plus 49-54, contradicting its own numberOfPorts of 52"
+    },
+    "US68P": {
+      "ports": {
+        "sfp": {
+          "media": "SFP+"
+        }
+      },
+      "source": "https://techspecs.ui.com/unifi/switching/usw-enterprise-8-poe: the 2 uplinks are 10G SFP+, not 1G SFP"
+    },
     "USM8P": {
       "ports": {
         "plus": {
@@ -246,6 +266,82 @@
         }
       },
       "source": "USW-Ultra PoE++ input is 1GbE RJ45, not SFP+"
+    },
+    "USM8P210": {
+      "ports": {
+        "plus": {
+          "media": "GE"
+        }
+      },
+      "source": "https://techspecs.ui.com/unifi/switching/usw-ultra-210w: 8 GbE RJ45 (7 PoE+, 1 PoE++ input) and no SFP cage; the bundle files the PoE++ input under \"plus\" as it does on USM8P"
+    },
+    "USM8P60": {
+      "ports": {
+        "plus": {
+          "media": "GE"
+        }
+      },
+      "source": "https://techspecs.ui.com/unifi/switching/usw-ultra-60w: 8 GbE RJ45 (7 PoE+, 1 PoE++ input) and no SFP cage; the bundle files the PoE++ input under \"plus\" as it does on USM8P"
+    },
+    "USPM48": {
+      "poe": false,
+      "source": "https://techspecs.ui.com/unifi/switching/usw-pro-max-48 lists no PoE row at all; the PSE is on the separate USW-Pro-Max-48-PoE SKU (USPM48P). The bundle and the fingerprint DB both mark this one PoE-capable"
+    },
+    "USWED36": {
+      "ports": {
+        "plus": {
+          "indexes": "10"
+        }
+      },
+      "source": "https://techspecs.ui.com/unifi/switching/usw-flex-2-5g-8: 8x 2.5GbE RJ45 + a 10GbE RJ45 / 10G SFP+ combo pair. The bundle records both halves of the pair as copper"
+    },
+    "USWED37": {
+      "ports": {
+        "plus": {
+          "indexes": "10"
+        }
+      },
+      "source": "https://techspecs.ui.com/unifi/switching/usw-flex-2-5g-8-poe: 8x 2.5GbE RJ45 (PoE++) + a 10GbE RJ45 / 10G SFP+ combo pair. The bundle records both halves of the pair as copper"
+    },
+    "USWF001": {
+      "ports": {
+        "sfp28": {
+          "media": "QSFP28"
+        }
+      },
+      "source": "https://techspecs.ui.com/unifi/switching/eav-xg-24-poe: 24x 10GbE RJ45 (all PoE+++) + 4x 100G QSFP28 uplinks"
+    },
+    "USWF002": {
+      "ports": {
+        "sfp28": {
+          "media": "QSFP28"
+        }
+      },
+      "source": "https://techspecs.ui.com/unifi/switching/eav-fiber: 20x 10G SFP+ + 2x 100G QSFP28 uplinks"
+    },
+    "USWF004": {
+      "ports": {
+        "plus": {
+          "media": "GE"
+        }
+      },
+      "source": "https://techspecs.ui.com/unifi/switching/ecs-24s-poe: the 24 access ports are RJ45 (8x 2.5GbE + 16x 10GbE), all PoE+++, not SFP+"
+    },
+    "USWF005": {
+      "ports": {
+        "plus": {
+          "media": "GE"
+        }
+      },
+      "source": "https://techspecs.ui.com/unifi/switching/ecs-24s: the 24 access ports are RJ45 (8x 2.5GbE + 16x 10GbE), not SFP+"
+    },
+    "USXG24": {
+      "ports": {
+        "plus": {
+          "media": "SFP28"
+        }
+      },
+      "source": "https://techspecs.ui.com/unifi/switching/usw-enterprisexg-24: the 2 uplinks are 25G SFP28, not 10G SFP+"
     },
     "UXGENT": {
       "udapi": {
