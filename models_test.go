@@ -88,6 +88,26 @@ func TestGeneratedModelRegistryMatchesControllerMetadata(t *testing.T) {
 	if got := modelRegistry["U7MP"].Radios[0].NSS; got != 3 {
 		t.Errorf("U7MP radio NSS = %d, want 3", got)
 	}
+	// The hardware DB carries no stream count, so every radio derives as
+	// 2x2 and the rest come from overrides. These three are one per width,
+	// picked so a dropped override cannot pass unnoticed; U7PROMAX also
+	// pins that the widths differ per band on the same device.
+	for model, want := range map[string][]int{
+		"U2IW":     {1},
+		"U7PROMAX": {2, 4, 2},
+		"U7HD":     {4, 4},
+	} {
+		radios := modelRegistry[model].Radios
+		if len(radios) != len(want) {
+			t.Errorf("%s has %d radios, want %d", model, len(radios), len(want))
+			continue
+		}
+		for i, nss := range want {
+			if radios[i].NSS != nss {
+				t.Errorf("%s %s NSS = %d, want %d", model, radios[i].Radio, radios[i].NSS, nss)
+			}
+		}
+	}
 	if got := modelRegistry["USWF07D"].Ports[31].Media; got != "QSFP28" {
 		t.Errorf("USWF07D port 32 media = %q, want QSFP28", got)
 	}

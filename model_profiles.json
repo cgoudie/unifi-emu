@@ -1431,7 +1431,7 @@
           "ht": "20",
           "min_txpower": 5,
           "max_txpower": 18,
-          "nss": 2,
+          "nss": 1,
           "radio_caps": 0,
           "antenna_gain": 1
         }
@@ -1606,7 +1606,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 26,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 3
         },
@@ -1616,7 +1616,7 @@
           "ht": "80",
           "min_txpower": 5,
           "max_txpower": 26,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         }
@@ -1653,7 +1653,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 26,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         },
@@ -1663,7 +1663,7 @@
           "ht": "80",
           "min_txpower": 5,
           "max_txpower": 26,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         }
@@ -1700,7 +1700,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         }
@@ -1737,7 +1737,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -1774,7 +1774,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -1844,7 +1844,7 @@
           "ht": "20",
           "min_txpower": 5,
           "max_txpower": 22,
-          "nss": 2,
+          "nss": 3,
           "radio_caps": 0,
           "antenna_gain": 3
         },
@@ -1854,7 +1854,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 22,
-          "nss": 2,
+          "nss": 3,
           "radio_caps": 0,
           "antenna_gain": 3
         }
@@ -1887,7 +1887,7 @@
           "ht": "20",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 3
         },
@@ -1897,7 +1897,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -1973,7 +1973,7 @@
           "ht": "20",
           "min_txpower": 5,
           "max_txpower": 22,
-          "nss": 2,
+          "nss": 3,
           "radio_caps": 0,
           "antenna_gain": 5
         },
@@ -1983,7 +1983,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 22,
-          "nss": 2,
+          "nss": 3,
           "radio_caps": 0,
           "antenna_gain": 6
         }
@@ -2010,7 +2010,7 @@
           "ht": "20",
           "min_txpower": 5,
           "max_txpower": 24,
-          "nss": 2,
+          "nss": 3,
           "radio_caps": 0,
           "antenna_gain": 3
         },
@@ -2174,7 +2174,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -2201,7 +2201,7 @@
           "ht": "20",
           "min_txpower": 5,
           "max_txpower": 30,
-          "nss": 2,
+          "nss": 3,
           "radio_caps": 0,
           "antenna_gain": 5
         },
@@ -2244,7 +2244,7 @@
           "ht": "20",
           "min_txpower": 5,
           "max_txpower": 22,
-          "nss": 2,
+          "nss": 3,
           "radio_caps": 0,
           "antenna_gain": 3
         },
@@ -2254,7 +2254,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 23,
-          "nss": 2,
+          "nss": 3,
           "radio_caps": 0,
           "antenna_gain": 3
         }
@@ -2388,7 +2388,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 26,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         },
@@ -2431,7 +2431,7 @@
           "ht": "20",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         },
@@ -2441,7 +2441,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 8
         }
@@ -2515,7 +2515,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -2552,7 +2552,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -2616,7 +2616,7 @@
           "ht": "20",
           "min_txpower": 5,
           "max_txpower": 20,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 3
         },
@@ -2626,7 +2626,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -2700,7 +2700,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -2737,7 +2737,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         }
@@ -2813,7 +2813,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 29,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         },
@@ -2823,7 +2823,7 @@
           "ht": "80",
           "min_txpower": 5,
           "max_txpower": 29,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         }
@@ -2861,7 +2861,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 29,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         },
@@ -2871,7 +2871,7 @@
           "ht": "80",
           "min_txpower": 5,
           "max_txpower": 29,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         }
@@ -2899,7 +2899,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 30,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 0
         },
@@ -2909,7 +2909,7 @@
           "ht": "80",
           "min_txpower": 5,
           "max_txpower": 30,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 0
         }
@@ -2985,7 +2985,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 29,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         },
@@ -3169,7 +3169,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 30,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 0
         },
@@ -3179,7 +3179,7 @@
           "ht": "80",
           "min_txpower": 5,
           "max_txpower": 30,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 0
         }
@@ -3217,7 +3217,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 29,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         },
@@ -3303,7 +3303,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 30,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 0
         },
@@ -3313,7 +3313,7 @@
           "ht": "80",
           "min_txpower": 5,
           "max_txpower": 30,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 0
         }
@@ -3389,7 +3389,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 30,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 12
         }
@@ -3426,7 +3426,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 23,
-          "nss": 2,
+          "nss": 3,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -3512,7 +3512,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 23,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 9
         },
@@ -3522,7 +3522,7 @@
           "ht": "80",
           "min_txpower": 5,
           "max_txpower": 30,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 12
         }
@@ -3624,7 +3624,7 @@
           "ht": "20",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 6
         },
@@ -3634,7 +3634,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 8
         }
@@ -4004,7 +4004,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -4041,7 +4041,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -4227,7 +4227,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 4
         }
@@ -20559,7 +20559,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 10
         }
@@ -20777,7 +20777,7 @@
           "ht": "40",
           "min_txpower": 5,
           "max_txpower": 25,
-          "nss": 2,
+          "nss": 4,
           "radio_caps": 0,
           "antenna_gain": 10
         }
