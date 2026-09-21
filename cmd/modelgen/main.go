@@ -151,10 +151,10 @@ func reduceDeviceDatabase(identity, bundle io.Reader, controllerVersion string) 
 		case "ugw":
 			m.Ports, err = gatewayPorts(meta)
 		case "usw":
-			m.Ports, err = switchMetadataPorts(d.Model, meta)
+			m.Ports, err = switchMetadataPorts(meta, modelOverride{})
 		case "uap":
 			m.Ports = accessPointPorts(d.Model)
-			m.Radios = metadataRadios(d.Model, meta)
+			m.Radios = metadataRadios(meta)
 		default:
 			err = fmt.Errorf("model %s has unsupported type %q", d.Model, d.Type)
 		}
@@ -208,8 +208,14 @@ func allModelKeys(bundle []byte) []string {
 }
 
 // displayFor returns the human-facing model name from the display map, falling
-// back to the bare model code when the bundle offers no friendly name.
-func displayFor(model string, display map[string]string) string {
+// back to the bare model code when the bundle offers no friendly name. An
+// override wins over both: the bundle's table carries a few internal names for
+// models that shipped under a different one, and the device reports the name it
+// was sold as.
+func displayFor(model string, display map[string]string, o modelOverride) string {
+	if o.Display != "" {
+		return o.Display
+	}
 	if name, ok := display[model]; ok && name != "" {
 		return name
 	}
@@ -219,16 +225,16 @@ func displayFor(model string, display map[string]string) string {
 // deriveLayout fills in ports (and radios for APs) from the hardware DB
 // metadata using the existing generic derivation helpers. m.Model and m.Type
 // must already be set.
-func deriveLayout(m *catalogModel, meta deviceDBModel) error {
+func deriveLayout(m *catalogModel, meta deviceDBModel, o modelOverride) error {
 	var err error
 	switch m.Type {
 	case "ugw", "uxg":
 		m.Ports, err = gatewayPorts(meta)
 	case "usw":
-		m.Ports, err = switchMetadataPorts(m.Model, meta)
+		m.Ports, err = switchMetadataPorts(meta, o)
 	case "uap":
 		m.Ports = accessPointPorts(m.Model)
-		m.Radios = metadataRadios(m.Model, meta)
+		m.Radios = metadataRadios(meta)
 	default:
 		err = fmt.Errorf("unsupported type %q", m.Type)
 	}
@@ -289,9 +295,12 @@ func harvestBundle(bundle []byte, display map[string]string, fw firmwareIndex, o
 			continue
 		}
 
+		// Looked up before derivation because a port override changes what
+		// the layout derives, not just what is patched onto it afterwards.
+		o, hasOverride := ov.Models[model]
 		m := catalogModel{
 			Model:        model,
-			ModelDisplay: displayFor(model, display),
+			ModelDisplay: displayFor(model, display, o),
 			Type:         meta.Type,
 			Version:      firmwareVersion(fw, model, meta.Type),
 		}
@@ -299,7 +308,7 @@ func harvestBundle(bundle []byte, display map[string]string, fw firmwareIndex, o
 		// encoding) is omitted, not silently wrong, and not fatal to the whole
 		// lineup. It's logged so the gap is visible and closable with an
 		// override or a supported-band addition.
-		if err := deriveLayout(&m, meta); err != nil {
+		if err := deriveLayout(&m, meta, o); err != nil {
 			skipped = append(skipped, fmt.Sprintf("%s (%v)", model, err))
 			continue
 		}
@@ -308,7 +317,6 @@ func harvestBundle(bundle []byte, display map[string]string, fw firmwareIndex, o
 		if fc, ok := ov.FirmwareCaps[m.Type+"@"+m.Version]; ok {
 			m.FWCaps = fc.FWCaps
 		}
-		o, hasOverride := ov.Models[model]
 		if hasOverride {
 			applyOverride(&m, o)
 			if o.UDAPI != nil {
@@ -482,7 +490,14 @@ func negotiatedMedia(supported []string) string {
 	}
 }
 
-func switchMetadataPorts(model string, meta deviceDBModel) ([]catalogPort, error) {
+// switchMetadataPorts builds a switch port layout from the hardware DB's
+// per-category index map. Categories are walked widest-to-narrowest so a
+// later, more specific one wins an index the earlier one also claimed --
+// that is how a combo pair modelled as one copper port becomes copper plus
+// fiber. The override lets a category's media or index set be restated
+// where the bundle contradicts the product's published port layout, which
+// it does for a handful of models.
+func switchMetadataPorts(meta deviceDBModel, o modelOverride) ([]catalogPort, error) {
 	mediaByIndex := map[int]string{}
 	for _, category := range []struct {
 		name  string
@@ -494,27 +509,34 @@ func switchMetadataPorts(model string, meta deviceDBModel) ([]catalogPort, error
 		{"sfp28", "SFP28"},
 		{"qsfp28", "QSFP28"},
 	} {
+		po, patched := o.Ports[category.name]
 		raw, ok := meta.Ports[category.name]
-		if !ok {
+		// An override may introduce a category the bundle omits, so an
+		// absent bundle entry is only fatal when nothing supplies indexes.
+		if !ok && (!patched || po.Indexes == "") {
 			continue
+		}
+		if patched && po.Indexes != "" {
+			raw = json.RawMessage(strconv.Quote(po.Indexes))
 		}
 		indexes, err := expandPortIndexes(raw)
 		if err != nil {
 			return nil, fmt.Errorf("%s ports: %w", category.name, err)
 		}
+		media := category.media
+		if patched && po.Media != "" {
+			media = po.Media
+		}
 		for _, idx := range indexes {
-			media := category.media
-			// The controller database calls the Ultra's PoE++ input
-			// "plus", but it is still a 1 GbE RJ45 port. Other "plus"
-			// entries in this catalog are SFP+.
-			if model == "USM8P" && category.name == "plus" {
-				media = "GE"
-			}
 			mediaByIndex[idx] = media
 		}
 	}
 	if len(mediaByIndex) == 0 {
 		return nil, errors.New("switch has no recognized ports")
+	}
+	poe := meta.Features.PoE
+	if o.PoE != nil {
+		poe = *o.PoE
 	}
 	indexes := make([]int, 0, len(mediaByIndex))
 	for idx := range mediaByIndex {
@@ -524,7 +546,7 @@ func switchMetadataPorts(model string, meta deviceDBModel) ([]catalogPort, error
 	ports := make([]catalogPort, 0, len(indexes))
 	for _, idx := range indexes {
 		poeCaps := 0
-		if meta.Features.PoE && mediaByIndex[idx] == "GE" {
+		if poe && mediaByIndex[idx] == "GE" {
 			poeCaps = 7
 		}
 		ports = append(ports, catalogPort{
@@ -608,12 +630,13 @@ func accessPointPorts(model string) []catalogPort {
 	return ports
 }
 
-func metadataRadios(model string, meta deviceDBModel) []catalogRadio {
+func metadataRadios(meta deviceDBModel) []catalogRadio {
 	order := map[string]int{"ng": 0, "na": 1, "6e": 2}
-	nss := 2
-	if model == "U7MP" {
-		nss = 3
-	}
+	// The bundle carries power and gain per band but never the stream
+	// count, so every radio starts at the commonest width and the models
+	// that ship 1x1, 3x3 or 4x4 silicon are corrected by override. Keeping
+	// the exceptions in one file beats scattering them through here.
+	const nss = 2
 	radios := make([]catalogRadio, 0, len(meta.Radios))
 	for band, facts := range meta.Radios {
 		ht := "40"
