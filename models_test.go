@@ -20,9 +20,9 @@ func TestGeneratedModelRegistryMatchesControllerMetadata(t *testing.T) {
 	// An exact count, not a floor: a regeneration that silently drops models
 	// is the failure this guards, and a deliberate change to the lineup is
 	// exactly when the number should be reviewed rather than tolerated.
-	const wantModels = 182
+	const wantModels = 183
 	if len(modelRegistry) != wantModels {
-		t.Fatalf("model registry has %d models, want %d (the full lineup at controller 10.4.57, "+
+		t.Fatalf("model registry has %d models, want %d (the full lineup at controller 10.6.106, "+
 			"minus the exclusions in cmd/modelgen)", len(modelRegistry), wantModels)
 	}
 	for model, portCount := range wantPorts {
