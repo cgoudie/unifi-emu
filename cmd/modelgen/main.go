@@ -36,6 +36,21 @@ type catalogModel struct {
 	FWCaps       int            `json:"fw_caps,omitempty"`
 	Ports        []catalogPort  `json:"ports,omitempty"`
 	Radios       []catalogRadio `json:"radios,omitempty"`
+	// Outlets is the power-device layout. It crosses type boundaries --
+	// rack PDUs report as switches, smart plugs as access points, and only
+	// the newer battery-backed models have a type of their own -- so it is
+	// derived from the model's own outlet map rather than from its type.
+	Outlets        []catalogOutlet `json:"outlets,omitempty"`
+	SmartPowerCaps int             `json:"smart_power_caps,omitempty"`
+}
+
+type catalogOutlet struct {
+	Index       int    `json:"index"`
+	Name        string `json:"name"`
+	Group       string `json:"group,omitempty"`
+	HasRelay    bool   `json:"has_relay"`
+	HasMetering bool   `json:"has_metering"`
+	Caps        int    `json:"outlet_caps,omitempty"`
 }
 
 type catalogPort struct {
@@ -85,14 +100,22 @@ type deviceDBModel struct {
 	SysID        string                     `json:"systemIdHexadecimal"`
 	Adoptability string                     `json:"adoptability"`
 	Ports        map[string]json.RawMessage `json:"ports"`
-	Radios       map[string]struct {
+	// Outlets mirrors Ports: a map of category to the indexes in it, in the
+	// same three encodings (a count, an index array, or a range string).
+	Outlets map[string]json.RawMessage `json:"outlets"`
+	Radios  map[string]struct {
 		MaxPower int `json:"maxPower"`
 		Gain     int `json:"gain"`
 	} `json:"radios"`
 	Features struct {
 		PoE bool `json:"poe"`
 	} `json:"features"`
-	LinkNegotiation map[string]struct {
+	// DeviceCapabilities names what a model can do in coarse terms. It is
+	// the only structural source for the facts an outlet layout cannot
+	// carry on its own: whether the outlets meter, and whether the device
+	// is battery-backed.
+	DeviceCapabilities []string `json:"deviceCapabilities"`
+	LinkNegotiation    map[string]struct {
 		PortIdx         int      `json:"portIdx"`
 		SupportedValues []string `json:"supportedValues"`
 	} `json:"linkNegotiation"`
@@ -224,7 +247,7 @@ func deriveLayout(m *catalogModel, meta deviceDBModel) error {
 	switch m.Type {
 	case "ugw", "uxg":
 		m.Ports, err = gatewayPorts(meta)
-	case "usw":
+	case "usw", "usp":
 		m.Ports, err = switchMetadataPorts(m.Model, meta)
 	case "uap":
 		m.Ports = accessPointPorts(m.Model)
@@ -232,7 +255,131 @@ func deriveLayout(m *catalogModel, meta deviceDBModel) error {
 	default:
 		err = fmt.Errorf("unsupported type %q", m.Type)
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	// Outlets are derived for every type, not inside the switch above: the
+	// power lineup is spread across usw, uap, uxg and usp, so a model's
+	// outlet map is the only thing that says whether it has outlets.
+	m.Outlets, err = deriveOutlets(meta)
+	if err != nil {
+		return err
+	}
+	m.SmartPowerCaps = deriveSmartPowerCaps(meta)
+	return nil
+}
+
+// Outlet and smart-power capability bits, mirroring the inform package's
+// constants. They are restated here rather than imported for the same reason
+// catalogPort restates inform.Port: the generator writes a data file and does
+// not otherwise depend on the protocol package.
+const (
+	outletCapHasRelay   = 1
+	outletCapPowerMeter = 2
+	outletCapAC         = 65536
+	outletCapUSB        = 131072
+
+	smartPowerCapNUTInformationAccess = 1
+	smartPowerCapBuzzer               = 4
+)
+
+func hasCapability(meta deviceDBModel, want string) bool {
+	for _, c := range meta.DeviceCapabilities {
+		if c == want {
+			return true
+		}
+	}
+	return false
+}
+
+// deriveSmartPowerCaps reports the device-level power bitmap. The capability
+// that makes a controller treat a device as a UPS rather than a plain power
+// strip is the one that matters: a battery-backed model that omits it loses
+// its battery UI entirely.
+func deriveSmartPowerCaps(meta deviceDBModel) int {
+	caps := 0
+	if hasCapability(meta, "BATTERY_MANAGEMENT") {
+		caps |= smartPowerCapNUTInformationAccess
+	}
+	if hasCapability(meta, "BUZZER") {
+		caps |= smartPowerCapBuzzer
+	}
+	return caps
+}
+
+// outletGroups are the categories that describe a real outlet, in the order a
+// contested index resolves. The remaining categories a model can carry -- lan,
+// rj45, wan -- are jacks sharing the same faceplate diagram, not outlets, and
+// are skipped.
+//
+// The order matters because the categories are not disjoint: some models list
+// the same index under more than one category, so the outlet set is their
+// union rather than their sum. Summing them reports a device with twice the
+// outlets it has.
+var outletGroups = []string{"usb", "standard", "surge"}
+
+// deriveOutlets builds the outlet layout from the model's outlet map, which
+// uses the same index encodings as the port map.
+func deriveOutlets(meta deviceDBModel) ([]catalogOutlet, error) {
+	if len(meta.Outlets) == 0 {
+		return nil, nil
+	}
+	group := map[int]string{}
+	for _, g := range outletGroups {
+		raw, ok := meta.Outlets[g]
+		if !ok {
+			continue
+		}
+		indexes, err := expandPortIndexes(raw)
+		if err != nil {
+			return nil, fmt.Errorf("outlet group %q: %w", g, err)
+		}
+		for _, idx := range indexes {
+			if _, taken := group[idx]; !taken {
+				group[idx] = g
+			}
+		}
+	}
+	if len(group) == 0 {
+		return nil, nil
+	}
+	indexes := make([]int, 0, len(group))
+	for idx := range group {
+		indexes = append(indexes, idx)
+	}
+	sort.Ints(indexes)
+
+	// Whether the outlets meter is a device fact, not an outlet one, and the
+	// USB outlets do not meter even on a model whose AC bank does.
+	metered := hasCapability(meta, "OUTLET_MONITOR")
+
+	outlets := make([]catalogOutlet, 0, len(indexes))
+	for _, idx := range indexes {
+		g := group[idx]
+		name := fmt.Sprintf("Outlet %d", idx)
+		caps := outletCapHasRelay | outletCapAC
+		if g == "usb" {
+			name = fmt.Sprintf("USB Outlet %d", idx)
+			caps = outletCapHasRelay | outletCapUSB
+		}
+		meters := metered && g != "usb"
+		if meters {
+			caps |= outletCapPowerMeter
+		}
+		outlets = append(outlets, catalogOutlet{
+			Index:       idx,
+			Name:        name,
+			Group:       g,
+			HasRelay:    true,
+			HasMetering: meters,
+			// The AC and USB class bits double as an encoding marker: a
+			// value below them is read as the older encoding, which sends
+			// the controller looking for an outlet_type this catalog does
+			// not carry.
+			Caps: caps,
+		})
+	}
+	return outlets, nil
 }
 
 // harvestBundle builds the full-lineup catalog from every in-scope model in the
@@ -242,19 +389,42 @@ func deriveLayout(m *catalogModel, meta deviceDBModel) error {
 // firmware index supplies versions, the display map supplies friendly names,
 // and overrides patch the AP ethernet layout and per-band spatial streams that
 // the bundle cannot express.
-func harvestBundle(bundle []byte, display map[string]string, fw firmwareIndex, ov overrides, caps capsFile, ver string) (catalogFile, error) {
-	out := catalogFile{
-		ControllerVersion: ver,
-		IdentitySource:    "controller hardware DB bundle (swai.js)",
-		HardwareSource:    "controller hardware DB bundle + fw-update API + tech specs",
+// catalogSource names where a harvest's model metadata came from, so the
+// generated catalog carries its own provenance instead of leaving the next
+// reader to guess which input produced it.
+type catalogSource struct {
+	Identity string
+	Hardware string
+	// StrictOverrides fails the run when an override names a model the
+	// source does not carry. That check exists to catch a typo in the
+	// overrides file, and it only means that against the controller's own
+	// database, which is the authority on which models exist. The public
+	// database covers a different set, so the same condition there is a
+	// coverage gap and is reported instead.
+	StrictOverrides bool
+}
+
+var (
+	sourceBundle = catalogSource{
+		Identity:        "controller hardware DB bundle (swai.js)",
+		Hardware:        "controller hardware DB bundle + fw-update API + tech specs",
+		StrictOverrides: true,
 	}
-	// considered holds every in-scope model the bundle offers, including ones
-	// later skipped as inexpressible. Overrides are validated against this set,
-	// not just the successfully-generated models: an override for a real model
-	// the bundle can't yet render (e.g. a novel radio band) is legitimate, but
-	// an override for a typo or an out-of-scope model is stale.
-	considered := map[string]bool{}
-	var skipped, defaultedEth, excluded []string
+	sourceFingerprint = catalogSource{
+		Identity: "Ubiquiti device fingerprint DB (static.ui.com/fingerprint/ui/public.json)",
+		Hardware: "Ubiquiti device fingerprint DB + fw-update API + tech specs",
+	}
+	sourceAgreed = catalogSource{
+		Identity: "controller hardware DB bundle (swai.js), agreeing with the Ubiquiti device fingerprint DB (static.ui.com/fingerprint/ui/public.json)",
+		Hardware: "controller hardware DB bundle + Ubiquiti device fingerprint DB + fw-update API + tech specs",
+	}
+)
+
+// bundleModels parses the per-model metadata out of the controller UI bundle.
+// A model whose entry can't be located or parsed is dropped here rather than
+// failing the run, matching how the harvest has always treated the bundle.
+func bundleModels(bundle []byte) map[string]deviceDBModel {
+	models := map[string]deviceDBModel{}
 	for _, model := range allModelKeys(bundle) {
 		metaJSON, err := extractModelJSON(bundle, model)
 		if err != nil {
@@ -264,8 +434,37 @@ func harvestBundle(bundle []byte, display map[string]string, fw firmwareIndex, o
 		if err := json.Unmarshal(metaJSON, &meta); err != nil {
 			continue
 		}
+		models[model] = meta
+	}
+	return models
+}
+
+func harvestBundle(bundle []byte, display map[string]string, fw firmwareIndex, ov overrides, caps capsFile, ver string) (catalogFile, error) {
+	return harvestModels(bundleModels(bundle), display, fw, ov, caps, ver, sourceBundle)
+}
+
+func harvestModels(models map[string]deviceDBModel, display map[string]string, fw firmwareIndex, ov overrides, caps capsFile, ver string, src catalogSource) (catalogFile, error) {
+	out := catalogFile{
+		ControllerVersion: ver,
+		IdentitySource:    src.Identity,
+		HardwareSource:    src.Hardware,
+	}
+	// considered holds every in-scope model the bundle offers, including ones
+	// later skipped as inexpressible. Overrides are validated against this set,
+	// not just the successfully-generated models: an override for a real model
+	// the bundle can't yet render (e.g. a novel radio band) is legitimate, but
+	// an override for a typo or an out-of-scope model is stale.
+	considered := map[string]bool{}
+	var skipped, defaultedEth, excluded []string
+	codes := make([]string, 0, len(models))
+	for model := range models {
+		codes = append(codes, model)
+	}
+	sort.Strings(codes)
+	for _, model := range codes {
+		meta := models[model]
 		switch meta.Type {
-		case "uap", "usw", "ugw", "uxg":
+		case "uap", "usw", "ugw", "uxg", "usp":
 		default:
 			// Out of scope. udm/uck consoles run the Network app themselves
 			// (adoptability "standalone"); a controller receives their inform
@@ -344,7 +543,7 @@ func harvestBundle(bundle []byte, display map[string]string, fw firmwareIndex, o
 			len(defaultedEth), defaultedEth)
 	}
 	if len(skipped) > 0 {
-		fmt.Fprintf(os.Stderr, "modelgen: skipped %d models the bundle can't express:\n", len(skipped))
+		fmt.Fprintf(os.Stderr, "modelgen: skipped %d models the source can't express:\n", len(skipped))
 		for _, s := range skipped {
 			fmt.Fprintf(os.Stderr, "  - %s\n", s)
 		}
@@ -356,12 +555,15 @@ func harvestBundle(bundle []byte, display map[string]string, fw firmwareIndex, o
 		}
 	}
 	if stale := staleExclusions(considered); len(stale) > 0 {
-		fmt.Fprintf(os.Stderr, "modelgen: %d exclusions name models absent from this bundle: %v\n",
+		fmt.Fprintf(os.Stderr, "modelgen: %d exclusions name models absent from this source: %v\n",
 			len(stale), stale)
 	}
 	out.ExcludedModels = excludedCatalogList()
 	if err := checkStaleOverrides(ov, considered); err != nil {
-		return catalogFile{}, err
+		if src.StrictOverrides {
+			return catalogFile{}, err
+		}
+		fmt.Fprintf(os.Stderr, "modelgen: %v\n", err)
 	}
 	return out, nil
 }
@@ -715,12 +917,15 @@ func validateModel(m *catalogModel) error {
 			m.Model, m.ModelDisplay, m.Version)
 	}
 	switch m.Type {
-	case "ugw", "usw", "uap", "uxg":
+	case "ugw", "usw", "uap", "uxg", "usp":
 	default:
 		return fmt.Errorf("model %s has unsupported type %q", m.Model, m.Type)
 	}
-	if len(m.Ports) == 0 {
-		return fmt.Errorf("model %s has no ports", m.Model)
+	// Ports are how almost every model is described, but not all: some power
+	// devices report outlets and no ethernet layout at all. A model with
+	// neither has nothing to describe it and stays out of the catalog.
+	if len(m.Ports) == 0 && len(m.Outlets) == 0 {
+		return fmt.Errorf("model %s has neither ports nor outlets", m.Model)
 	}
 	portIndexes := make(map[int]struct{}, len(m.Ports))
 	ifNames := make(map[string]struct{}, len(m.Ports))
@@ -751,8 +956,24 @@ func validateModel(m *catalogModel) error {
 			uplinks++
 		}
 	}
-	if uplinks != 1 {
+	// Exactly one port carries the uplink flag -- but only where there are
+	// ports to flag.
+	if len(m.Ports) > 0 && uplinks != 1 {
 		return fmt.Errorf("model %s has %d uplink ports, want exactly one", m.Model, uplinks)
+	}
+	outletIndexes := make(map[int]struct{}, len(m.Outlets))
+	for i := range m.Outlets {
+		o := &m.Outlets[i]
+		if o.Index <= 0 {
+			return fmt.Errorf("model %s has invalid outlet index %d", m.Model, o.Index)
+		}
+		if _, ok := outletIndexes[o.Index]; ok {
+			return fmt.Errorf("model %s has duplicate outlet index %d", m.Model, o.Index)
+		}
+		outletIndexes[o.Index] = struct{}{}
+		if o.Name == "" {
+			o.Name = fmt.Sprintf("Outlet %d", o.Index)
+		}
 	}
 	if m.Type == "uap" && len(m.Radios) == 0 {
 		return fmt.Errorf("model %s has no radios", m.Model)
@@ -797,7 +1018,8 @@ func run(args []string) error {
 	catalogPath := fs.String("catalog", "model_profiles.json", "reduced model catalog")
 	version := fs.String("controller-version", "", "source controller version (required with -input or -bundle)")
 	fetchEth := fs.Bool("fetch-eth", false, "pull AP ethernet from Tech Specs into -overrides (needs -bundle and -fingerprint)")
-	fingerprintPath := fs.String("fingerprint", "", "Ubiquiti device fingerprint DB (static.ui.com/fingerprint/ui/public.json), used with -fetch-eth")
+	fingerprintPath := fs.String("fingerprint", "", "Ubiquiti device fingerprint DB (static.ui.com/fingerprint/ui/public.json): a harvest source on its own, a cross-check when given with -bundle, and the SKU index for -fetch-eth")
+	allowDisagreement := fs.Bool("allow-source-disagreement", false, "harvest from -bundle even where -fingerprint describes a model differently, instead of stopping")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -809,14 +1031,32 @@ func run(args []string) error {
 		return runFetchEth(*harvestBundlePath, *fingerprintPath, *overridesPath)
 	}
 
+	// The two modes read different things and produce different catalogs, so
+	// combining them means one flag is silently doing nothing.
+	if *input != "" && (*harvestBundlePath != "" || *fingerprintPath != "") {
+		return errors.New("-input reduces an adopted fleet dump; -bundle and -fingerprint harvest the full lineup: pass one mode, not both")
+	}
+
 	var catalog catalogFile
-	if *harvestBundlePath != "" {
+	if *harvestBundlePath != "" || *fingerprintPath != "" {
 		if strings.TrimSpace(*version) == "" {
 			return errors.New("controller version is required (-controller-version)")
 		}
-		bundleBytes, err := os.ReadFile(*harvestBundlePath)
-		if err != nil {
-			return err
+		var bundleBytes []byte
+		if *harvestBundlePath != "" {
+			b, err := os.ReadFile(*harvestBundlePath)
+			if err != nil {
+				return err
+			}
+			bundleBytes = b
+		}
+		var fingerprintBytes []byte
+		if *fingerprintPath != "" {
+			b, err := os.ReadFile(*fingerprintPath)
+			if err != nil {
+				return err
+			}
+			fingerprintBytes = b
 		}
 		display := map[string]string{}
 		if *bundlesJSONPath != "" {
@@ -854,7 +1094,7 @@ func run(args []string) error {
 		if err != nil {
 			return err
 		}
-		catalog, err = harvestBundle(bundleBytes, display, fw, ov, caps, *version)
+		catalog, err = harvestSources(bundleBytes, fingerprintBytes, display, fw, ov, caps, *version, *allowDisagreement)
 		if err != nil {
 			return err
 		}
